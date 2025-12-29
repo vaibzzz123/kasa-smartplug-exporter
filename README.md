@@ -15,7 +15,9 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-3. Run the application:
+3. Configure environment variables (copy .env.example to .env and update values)
+
+4. Run the application:
 ```bash
 python main.py
 ```

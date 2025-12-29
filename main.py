@@ -26,7 +26,8 @@ logger = logging.getLogger(__name__)
 
 username = os.getenv('KASA_USERNAME')
 password = os.getenv('KASA_PASSWORD')
-model = os.getenv('KASA_MODEL', "KP125M")
+model_env = os.getenv('KASA_MODELS')
+models = [m.strip() for m in model_env.split(',') if m.strip()] if model_env else []
 port = os.getenv('PORT', 4467)
 scrape_interval = int(os.getenv('POLL_INTERVAL', 10))
 
@@ -107,8 +108,8 @@ async def main():
             logger.info(f"Alias: {dev.alias}")
             logger.info(f"Model: {dev.model}")
             
-            if model and dev.model != model:
-                logger.warning(f"Skipping {dev.model} and disconnecting, looking for {model}")
+            if models and dev.model not in models:
+                logger.warning(f"Skipping {dev.model} and disconnecting, looking for one of: {', '.join([f'\'{m}\'' for m in models])}")
                 await dev.disconnect()
                 continue
             
@@ -121,10 +122,15 @@ async def main():
             await dev.disconnect()
     
     if not model_devices:
-        logger.warning("No devices found matching the specified model.")
+        logger.warning(f"No devices found matching the specified models: {', '.join([f'\'{m}\'' for m in models])}.")
         return
 
-    logger.info(f"\nFound {len(model_devices)} devices matching model '{model}':")
+    logger.info(f"\nFound {len(model_devices)} devices matching models: {', '.join([f'\'{m}\'' for m in models])}:")
+    for dev in model_devices:
+        logger.info(f"\nDevice at {dev.host}:")
+        logger.info(f"Type: {type(dev).__name__}")
+        logger.info(f"Alias: {dev.alias}")
+        logger.info(f"Model: {dev.model}")
 
     logger.info(f"Starting Prometheus Exporter server on port {port}...")
     logger.info(f"Scraping every {scrape_interval} seconds")
