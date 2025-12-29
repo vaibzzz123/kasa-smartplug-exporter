@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import logging
 from kasa import Discover, Credentials
 from dotenv import load_dotenv
 from prometheus_client import start_http_server, Gauge
@@ -13,6 +14,15 @@ voltage_gauge = Gauge('kasa_smartplug_millivolts', 'Current voltage in millivolt
 energy_counter = Gauge('kasa_smartplug_energy_wh', 'Total energy consumption in watt-hours', ['device_alias', 'device_model'])
 
 load_dotenv()
+
+# Configure logging
+log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
+logging.basicConfig(
+    level=getattr(logging, log_level),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 username = os.getenv('KASA_USERNAME')
 password = os.getenv('KASA_PASSWORD')
@@ -33,7 +43,7 @@ async def collect_prometheus_metrics(dev):
 
 async def discover_devices():    
     if not username or not password:
-        print("Please set KASA_USERNAME and KASA_PASSWORD in .env file for cloud-authenticated devices")
+        logger.warning("Please set KASA_USERNAME and KASA_PASSWORD in .env file for cloud-authenticated devices")
         return {}
     
     try:
@@ -42,7 +52,7 @@ async def discover_devices():
         )
         return devices
     except Exception as e:
-        print(f"Discovery with credentials failed: {e}")
+        logger.error(f"Discovery with credentials failed: {e}")
         return {}
 
 async def get_power_statistics(dev):
@@ -50,10 +60,10 @@ async def get_power_statistics(dev):
         try:
             await dev.update()
             power = dev.modules['Energy'].status
-            print(f"  {dev.alias} ({dev.model}): {power['power_mw']}mW, {power['current_ma']}mA, {power['voltage_mv']}mV, {power['energy_wh']}Wh")
+            logger.debug(f"  {dev.alias} ({dev.model}): {power['power_mw']}mW, {power['current_ma']}mA, {power['voltage_mv']}mV, {power['energy_wh']}Wh")
             return power
         except Exception as e:
-            print(f"Error getting power statistics: {e}")
+            logger.error(f"Error getting power statistics: {e}")
             return None
     return None
 
@@ -63,42 +73,42 @@ async def get_power_statistics(dev):
 async def cleanup_devices():
     """Disconnect all devices."""
     global devices
-    print("Shutting down exporter...")
+    logger.info("Shutting down exporter...")
     for dev in devices:
         try:
             await dev.disconnect()
         except:
             pass
-    print("Devices disconnected.")
-    print("Exporter shutdown complete.")
+    logger.info("Devices disconnected.")
+    logger.info("Exporter shutdown complete.")
 
 async def main():
-    print("Exporter kasa-smartplug-exporter online!")
+    logger.info("Exporter kasa-smartplug-exporter online!")
     
     global devices
     devices = await discover_devices()
     
     if not devices:
-        print("No devices found.")
+        logger.warning("No devices found.")
         return
-    print("Found devices via cloud authentication.")    
-    print(f"Found {len(devices)} devices:")
+    logger.info("Found devices via cloud authentication.")    
+    logger.info(f"Found {len(devices)} devices:")
 
     model_devices = []
     
     for ip, dev in devices.items():
-        print(f"\nDevice at {ip}:")
-        print(f"Type: {type(dev).__name__}")
+        logger.info(f"\nDevice at {ip}:")
+        logger.info(f"Type: {type(dev).__name__}")
         
         try:
             # Update device to get current state
             await dev.update()
             
-            print(f"Alias: {dev.alias}")
-            print(f"Model: {dev.model}")
+            logger.info(f"Alias: {dev.alias}")
+            logger.info(f"Model: {dev.model}")
             
             if model and dev.model != model:
-                print(f"Skipping {dev.model} and disconnecting, looking for {model}")
+                logger.warning(f"Skipping {dev.model} and disconnecting, looking for {model}")
                 await dev.disconnect()
                 continue
             
@@ -106,22 +116,22 @@ async def main():
             model_devices.append(dev)
                             
         except Exception as e:
-            print(f"Error getting device info: {e}")
-            print("Note: This device may require cloud authentication")
+            logger.error(f"Error getting device info: {e}")
+            logger.warning("Note: This device may require cloud authentication")
             await dev.disconnect()
     
     if not model_devices:
-        print("No devices found matching the specified model.")
+        logger.warning("No devices found matching the specified model.")
         return
 
-    print(f"\nFound {len(model_devices)} devices matching model '{model}':")
+    logger.info(f"\nFound {len(model_devices)} devices matching model '{model}':")
 
-    print(f"Starting Prometheus Exporter server on port {port}...")
-    print(f"Scraping every {scrape_interval} seconds")
+    logger.info(f"Starting Prometheus Exporter server on port {port}...")
+    logger.info(f"Scraping every {scrape_interval} seconds")
     start_http_server(port)
 
-    print(f"Prometheus metrics available at http://localhost:{port}/metrics")
-    print("Press Ctrl+C to stop the exporter.")
+    logger.info(f"Prometheus metrics available at http://localhost:{port}/metrics")
+    logger.info("Press Ctrl+C to stop the exporter.")
 
     try:
         while True:
@@ -130,9 +140,9 @@ async def main():
 
             await asyncio.sleep(scrape_interval)
     except asyncio.CancelledError:
-        print("\nReceived cancellation signal, cleaning up...")
+        logger.info("\nReceived cancellation signal, cleaning up...")
     except KeyboardInterrupt:
-        print("\nReceived keyboard interrupt, cleaning up...")
+        logger.info("\nReceived keyboard interrupt, cleaning up...")
     finally:
         await cleanup_devices()
 
