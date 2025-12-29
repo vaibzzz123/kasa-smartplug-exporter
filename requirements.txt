@@ -9,6 +9,7 @@ frozenlist==1.8.0
 idna==3.11
 mashumaro==3.17
 multidict==6.7.0
+prometheus_client==0.23.1
 propcache==0.4.1
 pycparser==2.23
 python-dotenv==1.2.1

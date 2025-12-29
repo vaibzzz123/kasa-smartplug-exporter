@@ -4,16 +4,34 @@ import asyncio
 import os
 from kasa import Discover, Credentials
 from dotenv import load_dotenv
+from prometheus_client import start_http_server, Gauge
+
+# Create Prometheus metrics
+power_gauge = Gauge('kasa_smartplug_milliwatts', 'Current power consumption in milliwatts', ['device_alias', 'device_model'])
+current_gauge = Gauge('kasa_smartplug_milliamperes', 'Current current consumption in milliamperes', ['device_alias', 'device_model'])
+voltage_gauge = Gauge('kasa_smartplug_millivolts', 'Current voltage in millivolts', ['device_alias', 'device_model'])
+energy_counter = Gauge('kasa_smartplug_energy_wh', 'Total energy consumption in watt-hours', ['device_alias', 'device_model'])
 
 load_dotenv()
 
 username = os.getenv('KASA_USERNAME')
 password = os.getenv('KASA_PASSWORD')
 model = os.getenv('KASA_MODEL', "KP125M")
+port = os.getenv('PORT', 4467)
+scrape_interval = int(os.getenv('POLL_INTERVAL', 10))
 
-async def discover_devices():
-    """Discover Kasa devices using cloud authentication."""
+devices = []
+
+async def collect_prometheus_metrics(dev):
+    stats = await get_power_statistics(dev)
     
+    if stats:
+        power_gauge.labels(device_alias=dev.alias, device_model=dev.model).set(stats["power_mw"])
+        current_gauge.labels(device_alias=dev.alias, device_model=dev.model).set(stats["current_ma"])
+        voltage_gauge.labels(device_alias=dev.alias, device_model=dev.model).set(stats["voltage_mv"])
+        energy_counter.labels(device_alias=dev.alias, device_model=dev.model).set(stats["energy_wh"])
+
+async def discover_devices():    
     if not username or not password:
         print("Please set KASA_USERNAME and KASA_PASSWORD in .env file for cloud-authenticated devices")
         return {}
@@ -28,20 +46,36 @@ async def discover_devices():
         return {}
 
 async def get_power_statistics(dev):
-    """Get power statistics for a device."""
     if hasattr(dev, 'has_emeter'):
         try:
             await dev.update()
-            power = dev.modules['Energy']
+            power = dev.modules['Energy'].status
+            print(f"  {dev.alias} ({dev.model}): {power['power_mw']}mW, {power['current_ma']}mA, {power['voltage_mv']}mV, {power['energy_wh']}Wh")
             return power
         except Exception as e:
             print(f"Error getting power statistics: {e}")
             return None
     return None
 
+# Note: aiohttp may print "Unclosed client session" warnings during shutdown.
+# This is a cosmetic issue - connections are properly closed by the OS on exit.
+# The warnings are harmless and can be ignored.
+async def cleanup_devices():
+    """Disconnect all devices."""
+    global devices
+    print("Shutting down exporter...")
+    for dev in devices:
+        try:
+            await dev.disconnect()
+        except:
+            pass
+    print("Devices disconnected.")
+    print("Exporter shutdown complete.")
+
 async def main():
     print("Exporter kasa-smartplug-exporter online!")
     
+    global devices
     devices = await discover_devices()
     
     if not devices:
@@ -63,8 +97,7 @@ async def main():
             print(f"Alias: {dev.alias}")
             print(f"Model: {dev.model}")
             
-            # Filter by model if specified
-            if model and model != dev.model:
+            if model and dev.model != model:
                 print(f"Skipping {dev.model} and disconnecting, looking for {model}")
                 await dev.disconnect()
                 continue
@@ -77,26 +110,31 @@ async def main():
             print("Note: This device may require cloud authentication")
             await dev.disconnect()
     
-    print(f"\nFound {len(model_devices)} devices matching model '{model}':")
-    for dev in model_devices:
-        power = await get_power_statistics(dev)
-        if power is not None:
-            print(f"  {dev.alias} ({dev.model}): {power.status}W")
-        else:
-            print(f"  {dev.alias} ({dev.model}): Unable to get power reading")
-    
-
     if not model_devices:
         print("No devices found matching the specified model.")
         return
 
-    for dev in model_devices:
-        try:
-            await dev.disconnect()
-        except Exception as e:
-            print(f"Error disconnecting device: {e}")
+    print(f"\nFound {len(model_devices)} devices matching model '{model}':")
 
-    print("All devices disconnected.")
+    print(f"Starting Prometheus Exporter server on port {port}...")
+    print(f"Scraping every {scrape_interval} seconds")
+    start_http_server(port)
+
+    print(f"Prometheus metrics available at http://localhost:{port}/metrics")
+    print("Press Ctrl+C to stop the exporter.")
+
+    try:
+        while True:
+            for dev in model_devices:
+                await collect_prometheus_metrics(dev)
+
+            await asyncio.sleep(scrape_interval)
+    except asyncio.CancelledError:
+        print("\nReceived cancellation signal, cleaning up...")
+    except KeyboardInterrupt:
+        print("\nReceived keyboard interrupt, cleaning up...")
+    finally:
+        await cleanup_devices()
 
 if __name__ == "__main__":
     asyncio.run(main())
