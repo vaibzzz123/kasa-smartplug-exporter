@@ -2,10 +2,13 @@ version: '3.8'
 
 services:
   kasa-smartplug-exporter:
-    build: .
     container_name: kasa-smartplug-exporter
     restart: unless-stopped
     network_mode: host
+    # Can use pre-built image or build locally,
+    # To build locally, uncomment the build line and comment out the image line
+    image: ghcr.io/vaibzzz123/kasa-smartplug-exporter:latest
+    #build: .
     environment:
     # All environment variables are loaded from .env file in this case, or can specify them here directly
       - PORT=${PORT:-4467}
