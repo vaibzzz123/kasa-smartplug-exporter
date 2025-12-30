@@ -69,6 +69,15 @@ The Prometheus metrics will be available at `http://localhost:4467/metrics`
 
 **Note:** Host networking is required for device discovery to work properly, as Docker's default network isolation prevents UDP broadcast discovery.
 
+## Security
+
+This application requires Kasa cloud credentials to authenticate with newer smart devices. Please ensure:
+
+- Store your credentials securely in a `.env` file (already excluded from git)
+- Never commit actual credentials to version control
+- Use a dedicated Kasa account if possible
+- The application only uses credentials for device discovery and communication with Kasa services
+
 ## Development
 
 Add new dependencies to `requirements.txt` and install them with:

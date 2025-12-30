@@ -28,7 +28,7 @@ username = os.getenv('KASA_USERNAME')
 password = os.getenv('KASA_PASSWORD')
 model_env = os.getenv('KASA_MODELS')
 models = [m.strip() for m in model_env.split(',') if m.strip()] if model_env else []
-port = os.getenv('PORT', 4467)
+port = int(os.getenv('PORT', 4467))
 scrape_interval = int(os.getenv('POLL_INTERVAL', 10))
 
 devices = []
