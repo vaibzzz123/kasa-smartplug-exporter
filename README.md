@@ -69,6 +69,48 @@ The Prometheus metrics will be available at `http://localhost:4467/metrics`
 
 **Note:** Host networking is required for device discovery to work properly, as Docker's default network isolation prevents UDP broadcast discovery.
 
+## Automated Docker Builds
+
+This project uses GitHub Actions to automatically build and push Docker images to GitHub Container Registry (GHCR).
+
+### How it works
+
+**Triggers:**
+- Push to `main` branch → builds `main-latest` and `latest` tags
+- Create a tag like `v1.0.0` → builds `v1.0.0` tag
+- Manual trigger from Actions tab
+
+### Using the Pre-built Images
+
+**Pull the latest image:**
+```bash
+docker pull ghcr.io/vaibzzz123/kasa-smartplug-exporter:latest
+```
+
+**Pull a specific version:**
+```bash
+docker pull ghcr.io/vaibzzz123/kasa-smartplug-exporter:v1.0.0
+```
+
+**Run with pre-built image:**
+```bash
+docker run -d \
+  --name kasa-smartplug-exporter \
+  --network host \
+  -v $(pwd)/.env:/app/.env:ro \
+  ghcr.io/vaibzzz123/kasa-smartplug-exporter:latest
+```
+
+### Creating a Release
+
+1. Update version in your code (optional)
+2. Create and push a tag:
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+3. GitHub Actions will automatically build and push the tagged image
+
 ## Security
 
 This application requires Kasa cloud credentials to authenticate with newer smart devices. Please ensure:
