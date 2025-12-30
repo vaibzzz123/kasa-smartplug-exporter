@@ -86,6 +86,32 @@ To build locally instead, edit `docker-compose.yml`:
 build: .
 ```
 
+### Prometheus Integration with Host Networking
+
+When using `network_mode: host` for device discovery, add this to your Prometheus service in your docker-compose.yml:
+
+```yaml
+services:
+  prometheus:
+    # ... other prometheus config
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  kasa-smartplug-exporter:
+    network_mode: host
+    # ... exporter config
+```
+
+Then configure Prometheus to use this in prometheus.yml:
+```yaml
+scrape_configs:
+  - job_name: 'kasa-smartplug-exporter'
+    static_configs:
+      - targets: ['host.docker.internal:4467']
+```
+
+This allows Prometheus to discover the exporter while maintaining host networking for device discovery.
+
 ### Using Docker Directly
 
 ```bash
