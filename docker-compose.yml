@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  kasa-smartplug-exporter:
+    build: .
+    container_name: kasa-smartplug-exporter
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - PORT=4467
+      - POLL_INTERVAL=10
+      - LOG_LEVEL=INFO
+      # Uncomment and set your credentials
+      # - KASA_USERNAME=your_email@example.com
+      # - KASA_PASSWORD=your_password
+      # - KASA_MODELS=KP125M,HS103
+    volumes:
+      - ./.env:/app/.env:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:4467/metrics')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
