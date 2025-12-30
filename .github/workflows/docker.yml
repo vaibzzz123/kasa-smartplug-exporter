@@ -1,11 +1,9 @@
 name: Build and Push Docker Image
 
 on:
-  # Trigger on pushes to main branch
+  # Trigger on pushes to main branch and tags
   push:
     branches: [ main ]
-  # Trigger on creating tags (for releases)
-  push:
     tags: [ 'v*' ]
   # Allow manual runs from Actions tab
   workflow_dispatch:
