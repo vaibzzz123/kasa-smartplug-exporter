@@ -18,11 +18,12 @@ load_dotenv()
 # Configure logging
 log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
 logging.basicConfig(
-    level=getattr(logging, log_level),
+    level=logging.WARNING,  # suppress library noise by default
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
+logger.setLevel(getattr(logging, log_level))  # your logger respects LOG_LEVEL
 
 username = os.getenv('KASA_USERNAME')
 password = os.getenv('KASA_PASSWORD')
