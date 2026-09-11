@@ -29,6 +29,10 @@ username = os.getenv('KASA_USERNAME')
 password = os.getenv('KASA_PASSWORD')
 model_env = os.getenv('KASA_MODELS')
 models = [m.strip() for m in model_env.split(',') if m.strip()] if model_env else []
+
+plug_ips_env = os.getenv('KASA_PLUG_IPS', default=None)
+plug_ips = [ip.strip() for ip in plug_ips_env.split(',')] if plug_ips_env else []
+
 port = int(os.getenv('PORT', 4467))
 scrape_interval = int(os.getenv('POLL_INTERVAL', 10))
 
@@ -49,9 +53,24 @@ async def discover_devices():
         return {}
     
     try:
-        devices = await Discover.discover(
-            credentials=Credentials(username, password)
-        )
+        if len(plug_ips) == 0:
+            devices = await Discover.discover(
+                credentials=Credentials(username, password)
+            )
+        else:
+            devices = {}
+            for ip in plug_ips:
+                logger.info(f"Discovering device at IP: {ip}")
+                try:
+                    dev = await Discover.discover_single(
+                        host=ip,
+                        credentials=Credentials(username, password)
+                    )
+                    devices[ip] = dev
+                except Exception as e:
+                    logger.error(f"Failed to discover device at {ip}: {e}")
+                    continue
+        
         return devices
     except Exception as e:
         logger.error(f"Discovery with credentials failed: {e}")
@@ -109,7 +128,8 @@ async def main():
             logger.info(f"Alias: {dev.alias}")
             logger.info(f"Model: {dev.model}")
             
-            if models and dev.model not in models:
+# If plug ips are specified, can ignore checking models, assume the user knows that
+if models and dev.model not in models and len(plug_ips) == 0:
                 logger.warning(f"Skipping {dev.model} and disconnecting, looking for one of: {', '.join([f'\'{m}\'' for m in models])}")
                 await dev.disconnect()
                 continue

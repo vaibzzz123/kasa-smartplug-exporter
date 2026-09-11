@@ -40,6 +40,49 @@ cp .env.example .env
 python main.py
 ```
 
+### Option 3: Local systemd Service with UV
+
+```bash
+# Install dependencies with UV
+uv python install 3.13 
+uv venv .venv --python 3.13
+uv pip install -r requirements.txt
+
+# Create environment file
+cp .env.example .env
+
+# Run from workdir
+uv run main.py
+
+# Create systemd service
+sudo tee /etc/systemd/system/kasa-smartplug-exporter.service >/dev/null <<'EOF'
+[Unit]
+Description=Kasa Smart Plug Exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=<username>
+Group=<groupname>
+Type=simple
+WorkingDirectory=/path/to/kasa-smartplug-exporter
+ExecStart=/path/to/uv run main.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable and start service
+sudo systemctl daemon-reload
+sudo systemctl enable --now kasa-smartplug-exporter
+sudo systemctl start kasa-smartplug-exporter.service
+sudo systemctl status kasa-smartplug-exporter.service
+# Check logs
+sudo journalctl -u kasa-smartplug-exporter -f
+```
+
 ## Prometheus Metrics
 
 Available at `http://localhost:4467/metrics`:
@@ -62,6 +105,9 @@ KASA_PASSWORD=your_password
 
 # Optional: Filter by device models (comma-separated)
 KASA_MODELS=KP125M,HS103
+
+# Optional: specify device IP(s) to connect directly (comma-separated)
+KASA_PLUG_IPS=host1,host2
 
 # Optional: Exporter settings
 PORT=4467
