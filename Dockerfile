@@ -4,7 +4,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc libffi-dev libssl-dev && \
+    apt-get install -y --no-install-recommends ca-certificates gcc git libffi-dev libssl-dev && \
     rm -rf /var/lib/apt/lists/* && \
     pip install --no-cache-dir --prefix=/install -r requirements.txt
 

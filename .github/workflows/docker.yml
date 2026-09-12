@@ -45,7 +45,7 @@ jobs:
             # Tag with version for releases
             type=ref,event=tag
             # Tag with commit SHA
-            type=sha,prefix={{branch}}-
+            type=sha
             # Tag with latest for any push
             type=raw,value=latest,enable={{is_default_branch}}
 
