@@ -128,8 +128,8 @@ async def main():
             logger.info(f"Alias: {dev.alias}")
             logger.info(f"Model: {dev.model}")
             
-# If plug ips are specified, can ignore checking models, assume the user knows that
-if models and dev.model not in models and len(plug_ips) == 0:
+            # If plug ips are specified, can ignore checking models, assume the user knows that
+            if models and dev.model not in models and len(plug_ips) == 0:
                 logger.warning(f"Skipping {dev.model} and disconnecting, looking for one of: {', '.join([f'\'{m}\'' for m in models])}")
                 await dev.disconnect()
                 continue

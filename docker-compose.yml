@@ -17,6 +17,7 @@ services:
       - KASA_USERNAME=${KASA_USERNAME}
       - KASA_PASSWORD=${KASA_PASSWORD}
       - KASA_MODELS=${KASA_MODELS}
+      - KASA_PLUG_IPS=${KASA_PLUG_IPS}
     volumes:
       - ./.env:/app/.env:ro
     healthcheck:
